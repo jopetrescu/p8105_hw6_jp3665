@@ -1,0 +1,70 @@
+---
+title: "p8105_hw6_jp3665"
+author: "Joana Petrescu"
+date: "12/8/2020"
+output: github_document
+---
+
+```{r}
+
+library(tidyverse)
+
+```
+
+
+## Washington Post homicide data
+
+This data gathered by the Washington Post contains information about the victim, location, and disposition of over 52,000 homicides that occurred over the past decade in 50 of the largest cities in the U.S.
+
+Import crime data, create a `city_state` variable, filter out cities that do not report victim race, add logical column `solved` representing whether the case has been solved (Closed with arrest or Closed without arrest), filter to include only crimes with victims that were `White` or `Black`.
+
+```{r}
+
+homicide_data <- read.csv("https://raw.githubusercontent.com/washingtonpost/data-homicides/master/homicide-data.csv")
+
+homicide_data <- homicide_data %>%
+  mutate(.keep = "all", city_state = paste(city, state, sep = ", ")) %>%
+  filter(city_state != c("Phoenix, AZ", "Dallas, TX", "Kansas City, MO", "Tulsa, AL")) %>%
+  mutate(solved = as.numeric(disposition != c("Open/No arrest"))) %>%
+  mutate(victim_age = as.numeric(victim_age, na.rm = FALSE)) %>%
+  filter(victim_race %in% c("White", "Black")) %>%
+  select(city_state, solved, victim_age, victim_race, victim_sex)
+
+
+
+head(homicide_data)
+
+```
+
+## Generalized linear model for solving homicides by race
+
+Using Baltimore, MD as an example, use a generalized linear model to calculate odds ratio and confidence intervals for solving homicides comparing non-white victims to white victims, keeping age and sex fixed.
+
+```{r}
+
+baltimore_glm <- homicide_data %>%
+  filter(city_state == "Baltimore, MD") %>%
+  mutate(victim_race = factor(victim_race, levels = c("White", "Black"))) %>%
+  glm(solved ~ victim_age + victim_race + victim_sex, data = ., family = binomial()) %>%
+  broom::tidy() %>%
+  mutate(OR = exp(estimate), OR_min = exp(estimate - std.error), OR_max = exp(estimate + std.error)) %>%
+  mutate(across(is.numeric, ~ round(., 3))) %>%
+  mutate(CI = (paste(OR_min, OR_max, sep = "-"))) %>%
+  select(term, OR, CI)
+
+baltimore_glm %>% filter(term == "victim_raceBlack") %>% knitr::kable()
+
+
+```
+
+Iterate across all cities to calculate odds ratio and confidence intervals for ssolving homicides comparing non-white victims to white victims, keeping age and sex fixed.
+
+```{r}
+
+homicide_data <- homicide_data %>%
+  mutate(victim_race = factor(victim_race, levels = c("White", "Black")))
+
+
+
+```
+
