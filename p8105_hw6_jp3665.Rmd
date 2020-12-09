@@ -5,7 +5,7 @@ date: "12/8/2020"
 output: github_document
 ---
 
-```{r}
+```{r message=FALSE, warning=FALSE}
 
 library(tidyverse)
 
@@ -18,7 +18,7 @@ This data gathered by the Washington Post contains information about the victim,
 
 Import crime data, create a `city_state` variable, filter out cities that do not report victim race, add logical column `solved` representing whether the case has been solved (Closed with arrest or Closed without arrest), filter to include only crimes with victims that were `White` or `Black`.
 
-```{r}
+```{r warning=FALSE}
 
 homicide_data <- read.csv("https://raw.githubusercontent.com/washingtonpost/data-homicides/master/homicide-data.csv")
 
@@ -26,7 +26,7 @@ homicide_data <- homicide_data %>%
   mutate(.keep = "all", city_state = paste(city, state, sep = ", ")) %>%
   filter(city_state != c("Phoenix, AZ", "Dallas, TX", "Kansas City, MO", "Tulsa, AL")) %>%
   mutate(solved = as.numeric(disposition != c("Open/No arrest"))) %>%
-  mutate(victim_age = as.numeric(victim_age, na.rm = FALSE)) %>%
+  mutate(victim_age = as.numeric(victim_age)) %>%
   filter(victim_race %in% c("White", "Black")) %>%
   select(city_state, solved, victim_age, victim_race, victim_sex)
 
@@ -40,7 +40,7 @@ head(homicide_data)
 
 Using Baltimore, MD as an example, use a generalized linear model to calculate odds ratio and confidence intervals for solving homicides comparing non-white victims to white victims, keeping age and sex fixed.
 
-```{r}
+```{r warning=FALSE}
 
 baltimore_glm <- homicide_data %>%
   filter(city_state == "Baltimore, MD") %>%
@@ -57,14 +57,46 @@ baltimore_glm %>% filter(term == "victim_raceBlack") %>% knitr::kable()
 
 ```
 
-Iterate across all cities to calculate odds ratio and confidence intervals for ssolving homicides comparing non-white victims to white victims, keeping age and sex fixed.
+Iterate across all cities to calculate odds ratio and confidence intervals for solving homicides comparing non-white victims to white victims, keeping age and sex fixed.
 
-```{r}
+```{r warning=FALSE}
 
 homicide_data <- homicide_data %>%
   mutate(victim_race = factor(victim_race, levels = c("White", "Black")))
 
+homicide_nest <- homicide_data %>%
+  nest(data = -city_state) %>%
+  filter(city_state != "Tulsa, AL")
 
+homicide_glm <- homicide_nest %>%
+  mutate(
+    results = map(data, ~glm(solved ~ victim_age + victim_race + victim_sex, data = .x, family = binomial()) %>%
+                    broom::tidy())
+  ) %>%
+  select(-data) %>%
+  unnest(results) %>%
+  mutate(OR = exp(estimate), OR_min = exp(estimate - std.error), OR_max = exp(estimate + std.error)) %>%
+  mutate(across(is.numeric, ~ round(., 3))) %>%
+  mutate(CI = (paste(OR_min, OR_max, sep = "-"))) %>%
+  filter(term == "victim_raceBlack") 
+
+homicide_glm %>%  select(city_state, OR, CI) %>% knitr::kable()
+
+
+```
+Plot estimated odds ratios and confidence intervals for solving homicides comparing non-white victims to white victims, keeping age and sex fixed.
+
+```{r}
+
+homicide_glm %>% 
+  mutate(city_state = fct_reorder(city_state, OR)) %>%
+  ggplot(aes(x = city_state, y = OR)) +
+  geom_errorbar(aes(ymin = OR_min, ymax = OR_max)) +
+  geom_point() +
+  theme(axis.text.x = element_text(angle = 90)) +
+  xlab("City, State") +
+  ylab("Estimated Odds Ratio") +
+  labs(title = "Estimated Odds Ratio for Solved Homicides Comparing Black to White Victims")
 
 ```
 
