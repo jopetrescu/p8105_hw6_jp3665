@@ -223,7 +223,7 @@ weather_df =
 
 ```
 
-Perform simple linear regression with `tmax` as the response and `tmin` as the predictor. Extract r^2 value and log(intercept * slope)
+Perform simple linear regression with `tmax` as the response and `tmin` as the predictor. Extract and plot r^2^ value and log(β̂ 0∗β̂ 1).
 
 ```{r}
 
@@ -234,9 +234,7 @@ weather_bootstrap <- weather_df %>%
     glance = map(models, broom::glance),
     results = map(models, broom::tidy)
   ) %>%
-  select(-strap, -models)
-
-weather_bootstrap <- weather_bootstrap %>%
+  select(-strap, -models) %>%
   unnest(glance) %>%
   select(.id, r.squared, results) %>%
   unnest(results)
@@ -252,14 +250,21 @@ weather_results <- weather_bootstrap %>%
   mutate(
     log_betas = log(intercept * tmin)
   ) %>%
-  select(id, r_squared, log_betas) %>%
-  gather("stat", "value", c("r_squared", "log_betas"))
+  select(id, r_squared, log_betas)
 
-weather_results %>% ggplot(aes(x = stat, y = value)) +
+weather_results %>%
+  gather("stat", "value", c("r_squared", "log_betas")) %>% 
+  ggplot(aes(x = stat, y = value)) +
   geom_violin() +
   ggtitle("Bootstrap statistics for weather data") +
   xlab("Statistic") +
   ylab("Values")
 
+quantile(weather_results$r_squared, probs = c(0.025, 0.975), na.rm = TRUE)
+quantile(weather_results$log_betas, probs = c(0.025, 0.975), na.rm = TRUE)
+
 ```
+
+The distribution of log(β̂ 0∗β̂ 1)  is approximately 1.9 to 2.1 whereas the r^2^ values range from approximately 0.9 to 1. The 95% confidence interval for log(β̂ 0∗β̂ 1) is 1.965 - 2.058. The 95% confidence interval for the r^2^ value is 0.894 - 0.927. 
+
 
