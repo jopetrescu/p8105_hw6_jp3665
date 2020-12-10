@@ -8,6 +8,8 @@ output: github_document
 ```{r message=FALSE, warning=FALSE}
 
 library(tidyverse)
+## install.packages("janitor")
+library(janitor)
 
 ```
 
@@ -36,7 +38,7 @@ head(homicide_data)
 
 ```
 
-## Generalized linear model for solving homicides by race
+### Generalized linear model for solving homicides by race
 
 Using Baltimore, MD as an example, use a generalized linear model to calculate odds ratio and confidence intervals for solving homicides comparing non-white victims to white victims, keeping age and sex fixed.
 
@@ -97,6 +99,74 @@ homicide_glm %>%
   xlab("City, State") +
   ylab("Estimated Odds Ratio") +
   labs(title = "Estimated Odds Ratio for Solved Homicides Comparing Black to White Victims")
+
+```
+
+
+## Factors affecting children's birthweight
+
+Load birthweight data and recode variables
+
+```{r}
+
+birthweight_data <- read.csv("./data/birthweight.csv") %>% 
+  clean_names() %>%
+  mutate(babysex = recode(babysex, "1" = "male", "2" = "female")) %>%
+  mutate(frace = recode(frace, "1" = "White", "2" = "Black", "3" = "Asian", "4" = "Puerto Rican", "8" = "Other", "9" = "Unknown")) %>%
+  mutate(malform = recode(malform, "0" = "absent", "1" = "present")) %>%
+  mutate(mrace = recode(mrace, "1" = "White", "2" = "Black", "3" = "Asian", "4" = "Puerto Rican", "8" = "Other"))
+  
+
+```
+
+### Linear model for factors affecting children's birthweight
+
+Exploring correlations of mother's weight gain, gestational age, pre-pregnancy BMI, and pre-pregnancy weight with birth weight. Mother's weight gain and gestational age seem to be positively correlated with birth weight in this dataset whereas there seems to be no association between pre-pregnancy BMI or pre-pregnancy weight with birth wight.
+
+```{r}
+
+birthweight_data %>% ggplot(aes(x = wtgain, y = bwt)) +
+  geom_point()
+
+birthweight_data %>% ggplot(aes(x = gaweeks, y = bwt)) +
+  geom_point()
+
+birthweight_data %>% ggplot(aes(x = ppbmi, y = bwt)) +
+  geom_point()
+
+birthweight_data %>% ggplot(aes(x = ppwt, y = bwt)) +
+  geom_point()
+
+```
+
+In addition to the positive correlations identified above, I know that research has shown that smoking during pregnancy is associated with decreased birthweight. Therefore, my proposed linear model for this birth weight data uses gestational age, mother's weight gain during pregnancy, and average number of cigarettes smoked per day during pregnancy.
+
+
+```{r}
+
+smoking_fit <- lm(bwt ~ gaweeks + smoken + wtgain, data = birthweight_data) 
+
+length_fit <- lm(bwt ~ blength + gaweeks, data = birthweight_data)
+
+circumference_fit <- lm(bwt ~ (bhead + blength + babysex)^2, data = birthweight_data)
+
+```
+
+
+Plot model birth weight predictions and residuals against birth weight.
+
+
+```{r}
+
+smoking_fit %>% broom::tidy() %>% select(term, estimate, p.value) %>% knitr::kable(digits = 200)
+
+birthweight_data <- birthweight_data %>% modelr::add_predictions(smoking_fit) %>% modelr::add_residuals(smoking_fit)
+
+birthweight_data %>% ggplot(aes(x = bwt, y = pred)) +
+  geom_point()
+
+birthweight_data %>% ggplot(aes(x = bwt, y = resid)) +
+  geom_point()
 
 ```
 
