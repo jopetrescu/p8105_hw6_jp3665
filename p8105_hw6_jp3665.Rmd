@@ -205,7 +205,7 @@ Based on these calculated RMSE values, the model using head circumference, lengt
 
 ## Central Park weather data
 
-Load and clean data
+Load and clean Central Park weather data.
 
 ```{r}
 
@@ -219,7 +219,47 @@ weather_df =
     name = recode(id, USW00094728 = "CentralPark_NY"),
     tmin = tmin / 10,
     tmax = tmax / 10) %>%
-  select(name, id, everything())
+  select(date, tmax, tmin) 
+
+```
+
+Perform simple linear regression with `tmax` as the response and `tmin` as the predictor. Extract r^2 value and log(intercept * slope)
+
+```{r}
+
+weather_bootstrap <- weather_df %>%
+  modelr::bootstrap(n = 5000) %>%
+  mutate(
+    models = map(strap, ~ lm(tmax ~tmin, data = .x)),
+    glance = map(models, broom::glance),
+    results = map(models, broom::tidy)
+  ) %>%
+  select(-strap, -models)
+
+weather_bootstrap <- weather_bootstrap %>%
+  unnest(glance) %>%
+  select(.id, r.squared, results) %>%
+  unnest(results)
+
+weather_results <- weather_bootstrap %>%
+  select(.id, r.squared, term, estimate) %>%
+  spread(term, estimate) %>%
+  rename(
+    id = .id,
+    r_squared = r.squared,
+    intercept = "(Intercept)"
+  ) %>%
+  mutate(
+    log_betas = log(intercept * tmin)
+  ) %>%
+  select(id, r_squared, log_betas) %>%
+  gather("stat", "value", c("r_squared", "log_betas"))
+
+weather_results %>% ggplot(aes(x = stat, y = value)) +
+  geom_violin() +
+  ggtitle("Bootstrap statistics for weather data") +
+  xlab("Statistic") +
+  ylab("Values")
 
 ```
 
