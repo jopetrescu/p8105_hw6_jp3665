@@ -141,8 +141,7 @@ birthweight_data %>% ggplot(aes(x = ppwt, y = bwt)) +
 
 ```
 
-In addition to the positive correlations identified above, I know that research has shown that smoking during pregnancy is associated with decreased birthweight. Therefore, my proposed linear model for this birth weight data uses gestational age, mother's weight gain during pregnancy, and average number of cigarettes smoked per day during pregnancy.
-
+In addition to the positive correlations identified above, I know that research has shown that smoking during pregnancy is associated with decreased birth weight. Therefore, my proposed linear model for this birth weight data uses gestational age, mother's weight gain during pregnancy, and average number of cigarettes smoked per day during pregnancy. The second and third linear models are what I will compare my proposed model to.
 
 ```{r}
 
@@ -203,3 +202,24 @@ cv_df %>%
 
 ```
 Based on these calculated RMSE values, the model using head circumference, length, sex, and all interactions between these variables is the most accurate representation of this birth weight data, while the linear model that I proposed which only takes into account gestational gestational age, mother's weight gain during pregnancy and average number of cigarettes smoked per day during pregnancy performed the worst.
+
+## Central Park weather data
+
+Load and clean data
+
+```{r}
+
+weather_df = 
+  rnoaa::meteo_pull_monitors(
+    c("USW00094728"),
+    var = c("PRCP", "TMIN", "TMAX"), 
+    date_min = "2017-01-01",
+    date_max = "2017-12-31") %>%
+  mutate(
+    name = recode(id, USW00094728 = "CentralPark_NY"),
+    tmin = tmin / 10,
+    tmax = tmax / 10) %>%
+  select(name, id, everything())
+
+```
+
